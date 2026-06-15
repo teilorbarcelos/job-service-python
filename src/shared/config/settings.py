@@ -66,3 +66,6 @@ def build_settings() -> Settings:
     wants the `.env` file should instantiate `Settings()` directly.
     """
     return Settings(_env_file=None)  # type: ignore[call-arg]
+
+
+settings: Settings = Settings()
