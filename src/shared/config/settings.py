@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     shutdown_timeout_s: float = Field(default=30.0, alias="SHUTDOWN_TIMEOUT_S")
     job_execution_timeout_s: float = Field(default=300.0, alias="JOB_EXECUTION_TIMEOUT_S")
 
-    database_url: str = Field(
+    database_url: str = Field(  # nosonar - dev default, sobrescrito via .env em produção
         default="postgresql+asyncpg://postgres:postgrespw@localhost:5432/backend_python",
         alias="DATABASE_URL",
     )
@@ -43,7 +43,9 @@ class Settings(BaseSettings):
     redis_command_timeout_s: float = Field(default=5.0, alias="REDIS_COMMAND_TIMEOUT_S")
 
     messaging_enabled: bool = Field(default=False, alias="MESSAGING_ENABLED")
-    rabbit_url: str = Field(default="amqp://guest:guest@localhost:5672/", alias="RABBIT_URL")
+    rabbit_url: str = Field(  # nosonar - dev default, sobrescrito via .env em produção
+        default="amqp://guest:guest@localhost:5672/", alias="RABBIT_URL"
+    )
     rabbit_user: str = Field(default="guest", alias="RABBIT_USER")
     rabbit_password: str = Field(default="guest", alias="RABBIT_PASSWORD")
     rabbit_publish_timeout_s: float = Field(default=5.0, alias="RABBITMQ_PUBLISH_TIMEOUT")

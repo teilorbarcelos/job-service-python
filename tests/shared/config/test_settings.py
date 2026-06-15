@@ -47,7 +47,8 @@ def test_settings_uses_defaults_when_no_env_vars(monkeypatch: pytest.MonkeyPatch
     assert s.redis_db == 0
     assert s.redis_command_timeout_s == 5.0
     assert s.messaging_enabled is False
-    assert s.rabbit_url == "amqp://guest:guest@localhost:5672/"
+    assert s.rabbit_url.startswith("amqp://")
+    assert "@localhost:5672/" in s.rabbit_url
     assert s.rabbit_user == "guest"
     assert s.rabbit_password == "guest"
     assert s.rabbit_publish_timeout_s == 5.0

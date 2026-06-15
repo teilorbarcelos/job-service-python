@@ -29,9 +29,9 @@ class HealthCheckResult:
 
 
 class HealthCheckerProtocol(Protocol):
-    async def check_postgres(self, signal: object) -> HealthCheckResult: ...
-    async def check_redis(self, signal: object) -> HealthCheckResult: ...
-    async def check_rabbitmq(self, signal: object) -> HealthCheckResult: ...
+    async def check_postgres(self) -> HealthCheckResult: ...
+    async def check_redis(self) -> HealthCheckResult: ...
+    async def check_rabbitmq(self) -> HealthCheckResult: ...
 
 
 class HealthCheckJob(BaseJob):
@@ -49,9 +49,9 @@ class HealthCheckJob(BaseJob):
 
         timestamp = datetime.now(UTC).isoformat()
         pg, redis_res, rabbit = await asyncio.gather(
-            self._checker.check_postgres(context.signal),
-            self._checker.check_redis(context.signal),
-            self._checker.check_rabbitmq(context.signal),
+            self._checker.check_postgres(),
+            self._checker.check_redis(),
+            self._checker.check_rabbitmq(),
         )
         all_up = pg.status == "up" and redis_res.status == "up" and rabbit.status == "up"
 

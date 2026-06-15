@@ -38,7 +38,7 @@ async def test_check_postgres_returns_up_on_success(
     pool.acquire = MagicMock(return_value=_AcquireCtx())
     mocker.patch("src.infra.database.db.get_pool", new=AsyncMock(return_value=pool))
 
-    result = await DefaultHealthChecker().check_postgres(signal=None)
+    result = await DefaultHealthChecker().check_postgres()
     assert result.status == "up"
     assert result.latency_ms is not None
     assert result.latency_ms >= 0
@@ -53,7 +53,7 @@ async def test_check_postgres_returns_down_on_exception(
     pool.acquire = MagicMock(side_effect=RuntimeError("conn refused"))
     mocker.patch("src.infra.database.db.get_pool", new=AsyncMock(return_value=pool))
 
-    result = await DefaultHealthChecker().check_postgres(signal=None)
+    result = await DefaultHealthChecker().check_postgres()
     assert result.status == "down"
     assert result.error == "conn refused"
 
@@ -66,7 +66,7 @@ async def test_check_redis_returns_up_when_ping_is_pong(
     client.ping = AsyncMock(return_value="PONG")
     mocker.patch("src.infra.redis.redis_provider.get_client", return_value=client)
 
-    result = await DefaultHealthChecker().check_redis(signal=None)
+    result = await DefaultHealthChecker().check_redis()
     assert result.status == "up"
 
 
@@ -78,7 +78,7 @@ async def test_check_redis_returns_up_when_ping_is_true(
     client.ping = AsyncMock(return_value=True)
     mocker.patch("src.infra.redis.redis_provider.get_client", return_value=client)
 
-    result = await DefaultHealthChecker().check_redis(signal=None)
+    result = await DefaultHealthChecker().check_redis()
     assert result.status == "up"
 
 
@@ -90,7 +90,7 @@ async def test_check_redis_returns_down_when_ping_returns_unexpected(
     client.ping = AsyncMock(return_value=b"WEIRD")
     mocker.patch("src.infra.redis.redis_provider.get_client", return_value=client)
 
-    result = await DefaultHealthChecker().check_redis(signal=None)
+    result = await DefaultHealthChecker().check_redis()
     assert result.status == "down"
     assert result.error == "unexpected reply"
 
@@ -103,7 +103,7 @@ async def test_check_redis_returns_down_on_exception(
     client.ping = AsyncMock(side_effect=ConnectionError("redis down"))
     mocker.patch("src.infra.redis.redis_provider.get_client", return_value=client)
 
-    result = await DefaultHealthChecker().check_redis(signal=None)
+    result = await DefaultHealthChecker().check_redis()
     assert result.status == "down"
     assert result.error == "redis down"
 
@@ -113,7 +113,7 @@ async def test_check_rabbitmq_returns_disabled_when_messaging_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _patch_settings(monkeypatch, messaging_enabled=False)
-    result = await DefaultHealthChecker().check_rabbitmq(signal=None)
+    result = await DefaultHealthChecker().check_rabbitmq()
     assert result.status == "disabled"
 
 
@@ -128,7 +128,7 @@ async def test_check_rabbitmq_returns_up_when_check_passes(
         "src.infra.health.default_health_checker.rabbitmq_provider.messaging_provider",
         fake,
     )
-    result = await DefaultHealthChecker().check_rabbitmq(signal=None)
+    result = await DefaultHealthChecker().check_rabbitmq()
     assert result.status == "up"
 
 
@@ -143,7 +143,7 @@ async def test_check_rabbitmq_returns_down_when_check_returns_false(
         "src.infra.health.default_health_checker.rabbitmq_provider.messaging_provider",
         fake,
     )
-    result = await DefaultHealthChecker().check_rabbitmq(signal=None)
+    result = await DefaultHealthChecker().check_rabbitmq()
     assert result.status == "down"
     assert result.error == "connection closed"
 
@@ -159,6 +159,6 @@ async def test_check_rabbitmq_returns_down_on_exception(
         "src.infra.health.default_health_checker.rabbitmq_provider.messaging_provider",
         fake,
     )
-    result = await DefaultHealthChecker().check_rabbitmq(signal=None)
+    result = await DefaultHealthChecker().check_rabbitmq()
     assert result.status == "down"
     assert result.error == "rabbit down"

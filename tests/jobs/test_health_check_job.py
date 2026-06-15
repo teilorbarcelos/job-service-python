@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass
-from typing import Any
 
 import pytest
 
@@ -19,13 +17,13 @@ class _FakeChecker:
     redis: HealthCheckResult
     rabbit: HealthCheckResult
 
-    async def check_postgres(self, signal: Any) -> HealthCheckResult:
+    async def check_postgres(self) -> HealthCheckResult:
         return self.postgres
 
-    async def check_redis(self, signal: Any) -> HealthCheckResult:
+    async def check_redis(self) -> HealthCheckResult:
         return self.redis
 
-    async def check_rabbitmq(self, signal: Any) -> HealthCheckResult:
+    async def check_rabbitmq(self) -> HealthCheckResult:
         return self.rabbit
 
 
@@ -62,11 +60,12 @@ def test_health_check_job_can_be_disabled() -> None:
 async def test_handle_reports_healthy_when_all_up(
     caplog: pytest.LogCaptureFixture, capsys: pytest.CaptureFixture
 ) -> None:
+    import asyncio
+
     job = HealthCheckJob(checker=_all_up())
-    signal = asyncio.Event()
     logger = logging.getLogger("job.health-check")
     with caplog.at_level(logging.INFO, logger="job.health-check"):
-        await job.handle(JobContext(logger=logger, signal=signal))
+        await job.handle(JobContext(logger=logger, signal=asyncio.Event()))
     assert any("healthy" in str(getattr(r, "msg", "")) or "healthy" in str(r.__dict__) for r in caplog.records)
     captured = capsys.readouterr()
     assert "postgres=up" in captured.out
@@ -76,8 +75,10 @@ async def test_handle_reports_healthy_when_all_up(
 
 @pytest.mark.asyncio
 async def test_handle_reports_degraded_when_postgres_down(
-    caplog: pytest.LogCaptureFixture, capsys: pytest.CaptureFixture
+    capsys: pytest.CaptureFixture,
 ) -> None:
+    import asyncio
+
     checker = _FakeChecker(
         postgres=HealthCheckResult(status="down", error="conn refused"),
         redis=HealthCheckResult(status="up"),
@@ -94,6 +95,8 @@ async def test_handle_reports_degraded_when_postgres_down(
 async def test_handle_reports_degraded_when_redis_down(
     capsys: pytest.CaptureFixture,
 ) -> None:
+    import asyncio
+
     checker = _FakeChecker(
         postgres=HealthCheckResult(status="up"),
         redis=HealthCheckResult(status="down", error="redis down"),
@@ -109,6 +112,8 @@ async def test_handle_reports_degraded_when_redis_down(
 async def test_handle_reports_degraded_when_rabbit_down(
     capsys: pytest.CaptureFixture,
 ) -> None:
+    import asyncio
+
     checker = _FakeChecker(
         postgres=HealthCheckResult(status="up"),
         redis=HealthCheckResult(status="up"),
@@ -123,17 +128,18 @@ async def test_handle_reports_degraded_when_rabbit_down(
 @pytest.mark.asyncio
 async def test_handle_runs_all_three_checks_in_parallel() -> None:
     """If the checks were sequential, total time = sum. Parallel = max."""
+    import asyncio
 
     class _SlowChecker:
-        async def check_postgres(self, signal: Any) -> HealthCheckResult:
+        async def check_postgres(self) -> HealthCheckResult:
             await asyncio.sleep(0.05)
             return HealthCheckResult(status="up")
 
-        async def check_redis(self, signal: Any) -> HealthCheckResult:
+        async def check_redis(self) -> HealthCheckResult:
             await asyncio.sleep(0.05)
             return HealthCheckResult(status="up")
 
-        async def check_rabbitmq(self, signal: Any) -> HealthCheckResult:
+        async def check_rabbitmq(self) -> HealthCheckResult:
             await asyncio.sleep(0.05)
             return HealthCheckResult(status="up")
 
@@ -146,35 +152,17 @@ async def test_handle_runs_all_three_checks_in_parallel() -> None:
 
 
 @pytest.mark.asyncio
-async def test_handle_propagates_signal_to_checker() -> None:
-    received: list[Any] = []
-
-    class _CaptureChecker:
-        async def check_postgres(self, signal: Any) -> HealthCheckResult:
-            received.append(("pg", signal))
-            return HealthCheckResult(status="up")
-
-        async def check_redis(self, signal: Any) -> HealthCheckResult:
-            received.append(("redis", signal))
-            return HealthCheckResult(status="up")
-
-        async def check_rabbitmq(self, signal: Any) -> HealthCheckResult:
-            received.append(("rabbit", signal))
-            return HealthCheckResult(status="up")
-
-    job = HealthCheckJob(checker=_CaptureChecker())
-    signal = asyncio.Event()
-    await job.handle(JobContext(logger=logging.getLogger("test"), signal=signal))
-    assert all(s is signal for _, s in received)
-
-
-@pytest.mark.asyncio
 async def test_handle_logs_event_with_status_field(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    import asyncio
+
     job = HealthCheckJob(checker=_all_up())
     logger = logging.getLogger("job.health-check")
     with caplog.at_level(logging.INFO, logger="job.health-check"):
         await job.handle(JobContext(logger=logger, signal=asyncio.Event()))
     info_records = [r for r in caplog.records if r.levelname == "INFO"]
     assert len(info_records) >= 1
+    record = info_records[0]
+    msg = record.getMessage()
+    assert "event" in msg or getattr(record, "event", None) == "health-check"

@@ -7,26 +7,21 @@ providers. Tests inject a custom HealthChecker via the constructor.
 from __future__ import annotations
 
 import logging
-from typing import Protocol
 
 from src.infra.database import db as database
 from src.infra.messaging import rabbitmq_provider
 from src.infra.redis import redis_provider
-from src.jobs.health_check_job import HealthCheckResult
+from src.jobs.health_check_job import HealthCheckerProtocol, HealthCheckResult
 
 logger = logging.getLogger("health")
 
-
-class HealthChecker(Protocol):
-    async def check_postgres(self, signal: object) -> HealthCheckResult: ...
-    async def check_redis(self, signal: object) -> HealthCheckResult: ...
-    async def check_rabbitmq(self, signal: object) -> HealthCheckResult: ...
+__all__ = ["DefaultHealthChecker", "HealthCheckerProtocol"]
 
 
 class DefaultHealthChecker:
     """Production health checker that talks to the real providers."""
 
-    async def check_postgres(self, signal: object) -> HealthCheckResult:
+    async def check_postgres(self) -> HealthCheckResult:
         import asyncio
 
         loop = asyncio.get_event_loop()
@@ -42,7 +37,7 @@ class DefaultHealthChecker:
                 status="down", latency_ms=int((loop.time() - start) * 1000), error=str(exc)
             )
 
-    async def check_redis(self, signal: object) -> HealthCheckResult:
+    async def check_redis(self) -> HealthCheckResult:
         import asyncio
 
         loop = asyncio.get_event_loop()
@@ -61,7 +56,7 @@ class DefaultHealthChecker:
                 status="down", latency_ms=int((loop.time() - start) * 1000), error=str(exc)
             )
 
-    async def check_rabbitmq(self, signal: object) -> HealthCheckResult:
+    async def check_rabbitmq(self) -> HealthCheckResult:
         from src.shared.config.settings import settings
 
         if not settings.messaging_enabled:
