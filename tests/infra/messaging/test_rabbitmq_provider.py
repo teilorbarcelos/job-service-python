@@ -209,7 +209,7 @@ async def test_disconnect_swallows_connection_close_error(
 
 
 def test_singleton_instance_is_module_global() -> None:
-    assert isinstance(rabbitmq_provider.rabbitmq_provider, RabbitMQProvider)
+    assert isinstance(rabbitmq_provider.messaging_provider, RabbitMQProvider)
 
 
 def test_publish_marks_connection_closed_after_disconnect(

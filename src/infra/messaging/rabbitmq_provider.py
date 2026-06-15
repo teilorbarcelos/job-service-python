@@ -80,4 +80,4 @@ class RabbitMQProvider:
         logger.info("[RabbitMQ] Disconnected")
 
 
-rabbitmq_provider = RabbitMQProvider()
+messaging_provider = RabbitMQProvider()
