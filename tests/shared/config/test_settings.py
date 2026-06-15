@@ -139,8 +139,10 @@ def test_settings_is_constructible_multiple_times(monkeypatch: pytest.MonkeyPatc
     assert b.log_level == "ERROR"
 
 
-def test_settings_uses_default_factory_directly() -> None:
+def test_settings_uses_default_factory_directly(monkeypatch: pytest.MonkeyPatch) -> None:
     """Settings() with no env override works because of Field defaults."""
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    monkeypatch.delenv("DATABASE_POOL_MAX", raising=False)
     s = Settings(_env_file=None)  # bypass .env file
     assert s.environment == "local"
     assert s.database_pool_max == 20
