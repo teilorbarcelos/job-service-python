@@ -1,7 +1,7 @@
 [project]
-name = "backend-python"
+name = "job-service-python"
 version = "1.0.0"
-description = "FastAPI backend boilerplate"
+description = "Job runner boilerplate (cron + PostgreSQL + Redis + RabbitMQ)"
 requires-python = ">=3.12"
 
 [tool.ruff]
@@ -16,6 +16,7 @@ quote-style = "double"
 
 [tool.mypy]
 python_version = "3.12"
+explicit_package_bases = true
 strict = false
 ignore_missing_imports = true
 warn_unused_ignores = true
@@ -38,9 +39,9 @@ python_functions = ["test_*"]
 
 [tool.coverage.run]
 source = ["src"]
-omit = ["*/migrations/*"]
+omit = ["*/migrations/*", "src/main.py"]
 
 [tool.coverage.report]
-fail_under = 95
+fail_under = 100
 show_missing = true
 skip_empty = true

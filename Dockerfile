@@ -3,8 +3,8 @@ FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -31,10 +31,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 COPY ./src ./src
 
-# Create non-root user
 RUN addgroup --system app && adduser --system --group app
 USER app
 
-EXPOSE 8888
-
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8888", "--workers", "4", "--log-level", "warning"]
+CMD ["python", "-m", "src.main"]

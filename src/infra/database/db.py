@@ -1,95 +1,65 @@
-import os
-from contextlib import asynccontextmanager
+"""PostgreSQL connection pool (asyncpg).
 
-from sqlalchemy import event
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+This module owns a single asyncpg.Pool for the whole job runner.
+Jobs that need raw SQL access acquire connections from this pool
+(`async with pool.acquire() as conn: ...`).
+
+The pool is created lazily on first `get_pool()` call and closed
+by `close_pool()` during graceful shutdown. `reset()` is a
+sync helper for tests that clears the module-level reference without
+actually closing the pool (use `close_pool()` in production).
+
+The backend (backend-python) owns the schema and migrations. This
+service only reads/writes the tables the backend has already created.
+"""
+
+from __future__ import annotations
+
+from urllib.parse import urlparse, urlunparse
+
+import asyncpg
 
 from src.shared.config.settings import settings
 
-_engine_instance = None
-_async_session_factory = None
-_test_session = None
+_pool: asyncpg.Pool | None = None
 
 
-def _create_engine():
-    global _engine_instance, _async_session_factory
+def _normalize_dsn(url: str) -> str:
+    """Convert SQLAlchemy-style URLs (postgresql+asyncpg://) to asyncpg-style.
 
-    engine_kwargs = {
-        "echo": settings.environment == "local",
-        "future": True,
-    }
+    The backend-python service uses SQLAlchemy which writes
+    `postgresql+asyncpg://...` in `.env`. asyncpg doesn't understand
+    the `+asyncpg` suffix, so we strip it.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme == "postgresql+asyncpg":
+        return urlunparse(parsed._replace(scheme="postgresql"))
+    return url
 
-    if "sqlite" not in settings.database_url.lower():
-        engine_kwargs.update(
-            {
-                "pool_size": settings.db_pool_size,
-                "max_overflow": settings.db_max_overflow,
-                "pool_timeout": settings.db_pool_timeout,
-                "pool_recycle": settings.db_pool_recycle,
-                "pool_pre_ping": settings.db_pool_pre_ping,
-            }
+
+async def get_pool() -> asyncpg.Pool:
+    global _pool
+    if _pool is None:
+        _pool = await asyncpg.create_pool(
+            dsn=_normalize_dsn(settings.database_url),
+            min_size=2,
+            max_size=settings.database_pool_max,
+            command_timeout=settings.database_command_timeout_s,
         )
-
-    _engine_instance = create_async_engine(settings.database_url, **engine_kwargs)
-
-    from src.infra.metrics.metric_service import metric_service
-
-    @event.listens_for(_engine_instance.sync_engine, "before_cursor_execute")
-    def before_cursor_execute(conn, cursor, statement, parameters, context, execmany):
-        metric_service.increment_counter("db_queries_total")
-
-    _async_session_factory = async_sessionmaker(
-        bind=_engine_instance,
-        class_=AsyncSession,
-        expire_on_commit=False,
-        autoflush=False,
-    )
+    return _pool
 
 
-def get_engine():
-    global _engine_instance
-    if _engine_instance is None:
-        _create_engine()
-    return _engine_instance
+async def close_pool() -> None:
+    global _pool
+    if _pool is not None:
+        await _pool.close()
+        _pool = None
 
 
-def get_async_session_factory():
-    global _async_session_factory
-    if _async_session_factory is None:
-        _create_engine()
-    return _async_session_factory
+def reset() -> None:
+    """Clear the module-level pool reference without closing.
 
-
-async def close_engine():
-    global _engine_instance, _async_session_factory
-    if _engine_instance is not None:
-        await _engine_instance.dispose()
-        _engine_instance = None
-        _async_session_factory = None
-
-
-def set_test_session(session):
-    global _test_session
-    _test_session = session
-
-
-@asynccontextmanager
-async def SessionLocal():
-    if _test_session:
-        yield _test_session
-    else:
-        factory = get_async_session_factory()
-        async with factory() as session:
-            try:
-                yield session
-                await session.commit()
-            except:
-                await session.rollback()
-                raise
-            finally:
-                await session.close()
-
-
-get_session = SessionLocal
-
-IS_TEST = "PYTEST_CURRENT_TEST" in os.environ
+    Use only in tests. Production code must call `await close_pool()`.
+    """
+    global _pool
+    _pool = None

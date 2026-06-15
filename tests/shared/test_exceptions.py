@@ -1,37 +1,56 @@
-from src.shared.exceptions import AppException, EntityNotFound, PermissionDenied, ConflictError, Unauthorized
+"""Tests for the AppError hierarchy."""
+
+from __future__ import annotations
+
+import pytest
+
+from src.shared.exceptions import (
+    AppError,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    UnauthorizedError,
+    ValidationError,
+)
 
 
-def test_app_exception_default_error_type():
-    exc = AppException(status_code=400, detail="Bad request")
-    assert exc.error_type == "AppException"
-    assert exc.detail == "Bad request"
+def test_app_error_stores_message() -> None:
+    e = AppError("boom")
+    assert e.message == "boom"
+    assert str(e) == "boom"
 
 
-def test_entity_not_found_default():
-    exc = EntityNotFound()
-    assert exc.status_code == 404
-    assert exc.detail == "Resource not found"
+def test_app_error_is_exception_subclass() -> None:
+    assert issubclass(AppError, Exception)
 
 
-def test_entity_not_found_with_identifier():
-    exc = EntityNotFound(entity="User", identifier="123")
-    assert exc.status_code == 404
-    assert exc.detail == "User not found: 123"
+def test_not_found_error_inherits_app_error() -> None:
+    e = NotFoundError("missing")
+    assert isinstance(e, AppError)
+    assert e.message == "missing"
 
 
-def test_permission_denied():
-    exc = PermissionDenied()
-    assert exc.status_code == 403
-    assert exc.detail == "Permission denied"
+def test_conflict_error_inherits_app_error() -> None:
+    assert isinstance(ConflictError("dup"), AppError)
 
 
-def test_conflict_error():
-    exc = ConflictError()
-    assert exc.status_code == 409
-    assert exc.detail == "Resource already exists"
+def test_validation_error_inherits_app_error() -> None:
+    assert isinstance(ValidationError("bad"), AppError)
 
 
-def test_unauthorized():
-    exc = Unauthorized()
-    assert exc.status_code == 401
-    assert exc.detail == "Unauthorized"
+def test_unauthorized_error_inherits_app_error() -> None:
+    assert isinstance(UnauthorizedError("no auth"), AppError)
+
+
+def test_forbidden_error_inherits_app_error() -> None:
+    assert isinstance(ForbiddenError("nope"), AppError)
+
+
+@pytest.mark.parametrize(
+    "cls",
+    [NotFoundError, ConflictError, ValidationError, UnauthorizedError, ForbiddenError],
+)
+def test_all_subclasses_default_message(cls: type[AppError]) -> None:
+    e = cls()
+    assert e.message == cls.__name__
+    assert isinstance(e, AppError)
