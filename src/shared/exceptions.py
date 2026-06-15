@@ -1,30 +1,41 @@
-from fastapi import HTTPException
+"""General-purpose exception hierarchy for the job runner.
+
+These are domain-level errors that any job may raise when it
+catches a recoverable business-logic problem (validation, conflict,
+not-found, etc). The BaseJob.run() method catches `Exception`
+and converts it into a JobResult with status="error" + the message.
+
+By having named classes instead of bare ValueError/RuntimeError,
+log aggregation and alerting can distinguish error categories
+without parsing message strings.
+"""
+
+from __future__ import annotations
 
 
-class AppException(HTTPException):
-    def __init__(self, status_code: int, detail: str = None, error_type: str = None):
-        super().__init__(status_code=status_code, detail=detail)
-        self.error_type = error_type or self.__class__.__name__
+class AppError(Exception):
+    """Base class for all domain errors raised by jobs."""
+
+    def __init__(self, message: str = "") -> None:
+        super().__init__(message or self.__class__.__name__)
+        self.message = message or self.__class__.__name__
 
 
-class EntityNotFound(AppException):
-    def __init__(self, entity: str = "Resource", identifier: str = ""):
-        detail = f"{entity} not found"
-        if identifier:
-            detail += f": {identifier}"
-        super().__init__(status_code=404, detail=detail)
+class NotFoundError(AppError):
+    """Raised when an expected resource does not exist."""
 
 
-class PermissionDenied(AppException):
-    def __init__(self, detail: str = "Permission denied"):
-        super().__init__(status_code=403, detail=detail)
+class ConflictError(AppError):
+    """Raised when an operation collides with current state (e.g. duplicate)."""
 
 
-class ConflictError(AppException):
-    def __init__(self, detail: str = "Resource already exists"):
-        super().__init__(status_code=409, detail=detail)
+class ValidationError(AppError):
+    """Raised when input data fails business validation."""
 
 
-class Unauthorized(AppException):
-    def __init__(self, detail: str = "Unauthorized"):
-        super().__init__(status_code=401, detail=detail)
+class UnauthorizedError(AppError):
+    """Raised when credentials are missing or invalid."""
+
+
+class ForbiddenError(AppError):
+    """Raised when the caller is authenticated but lacks permission."""
