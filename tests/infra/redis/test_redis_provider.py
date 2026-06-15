@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -42,18 +43,18 @@ def test_get_client_uses_from_url_when_redis_host_is_url(
     )
     redis_provider.reset()
 
-    import src.shared.config.settings as settings_mod
+    fake_settings = MagicMock()
+    fake_settings.redis_host = "redis://example.com:6379/0"
+    fake_settings.redis_password = "secret"
+    fake_settings.redis_db = 0
+    fake_settings.redis_command_timeout_s = 5.0
+    mocker.patch("src.infra.redis.redis_provider.settings", fake_settings)
 
-    original = settings_mod.settings.redis_host
-    settings_mod.settings.redis_host = "redis://example.com:6379/0"
-    try:
-        redis_provider.get_client()
-        from_url_mock.assert_called_once()
-        call_kwargs = from_url_mock.call_args.kwargs
-        assert "host" not in from_url_mock.call_args.args
-        assert call_kwargs["db"] == settings_mod.settings.redis_db
-    finally:
-        settings_mod.settings.redis_host = original
+    redis_provider.get_client()
+    from_url_mock.assert_called_once()
+    call_kwargs = from_url_mock.call_args.kwargs
+    assert "host" not in from_url_mock.call_args.args
+    assert call_kwargs["db"] == 0
 
 
 def test_get_client_uses_redis_constructor_when_redis_host_is_plain(
@@ -64,22 +65,20 @@ def test_get_client_uses_redis_constructor_when_redis_host_is_plain(
     )
     redis_provider.reset()
 
-    import src.shared.config.settings as settings_mod
+    fake_settings = MagicMock()
+    fake_settings.redis_host = "127.0.0.1"
+    fake_settings.redis_port = 6380
+    fake_settings.redis_password = "secret"
+    fake_settings.redis_db = 0
+    fake_settings.redis_command_timeout_s = 5.0
+    mocker.patch("src.infra.redis.redis_provider.settings", fake_settings)
 
-    original_host = settings_mod.settings.redis_host
-    original_port = settings_mod.settings.redis_port
-    settings_mod.settings.redis_host = "127.0.0.1"
-    settings_mod.settings.redis_port = 6380
-    try:
-        redis_provider.get_client()
-        redis_ctor_mock.assert_called_once()
-        call_kwargs = redis_ctor_mock.call_args.kwargs
-        assert call_kwargs["host"] == "127.0.0.1"
-        assert call_kwargs["port"] == 6380
-        assert call_kwargs["db"] == settings_mod.settings.redis_db
-    finally:
-        settings_mod.settings.redis_host = original_host
-        settings_mod.settings.redis_port = original_port
+    redis_provider.get_client()
+    redis_ctor_mock.assert_called_once()
+    call_kwargs = redis_ctor_mock.call_args.kwargs
+    assert call_kwargs["host"] == "127.0.0.1"
+    assert call_kwargs["port"] == 6380
+    assert call_kwargs["db"] == 0
 
 
 def test_get_client_uses_rediss_scheme(mocker: pytest.MockerFixture) -> None:
@@ -88,18 +87,18 @@ def test_get_client_uses_rediss_scheme(mocker: pytest.MockerFixture) -> None:
     )
     redis_provider.reset()
 
-    import src.shared.config.settings as settings_mod
+    fake_settings = MagicMock()
+    fake_settings.redis_host = "rediss://secure.example.com:6380/0"
+    fake_settings.redis_password = "secret"
+    fake_settings.redis_db = 0
+    fake_settings.redis_command_timeout_s = 5.0
+    mocker.patch("src.infra.redis.redis_provider.settings", fake_settings)
 
-    original = settings_mod.settings.redis_host
-    settings_mod.settings.redis_host = "rediss://secure.example.com:6380/0"
-    try:
-        redis_provider.get_client()
-        from_url_mock.assert_called_once()
-    finally:
-        settings_mod.settings.redis_host = original
+    redis_provider.get_client()
+    from_url_mock.assert_called_once()
 
 
-def test_get_client_passes_empty_password_as_none(
+def test_get_client_uses_empty_password_as_none(
     mocker: pytest.MockerFixture,
 ) -> None:
     redis_ctor_mock = mocker.patch(
@@ -107,18 +106,16 @@ def test_get_client_passes_empty_password_as_none(
     )
     redis_provider.reset()
 
-    import src.shared.config.settings as settings_mod
+    fake_settings = MagicMock()
+    fake_settings.redis_host = "127.0.0.1"
+    fake_settings.redis_port = 6379
+    fake_settings.redis_password = ""
+    fake_settings.redis_db = 0
+    fake_settings.redis_command_timeout_s = 5.0
+    mocker.patch("src.infra.redis.redis_provider.settings", fake_settings)
 
-    original_host = settings_mod.settings.redis_host
-    original_password = settings_mod.settings.redis_password
-    settings_mod.settings.redis_host = "127.0.0.1"
-    settings_mod.settings.redis_password = ""
-    try:
-        redis_provider.get_client()
-        assert redis_ctor_mock.call_args.kwargs["password"] is None
-    finally:
-        settings_mod.settings.redis_host = original_host
-        settings_mod.settings.redis_password = original_password
+    redis_provider.get_client()
+    assert redis_ctor_mock.call_args.kwargs["password"] is None
 
 
 @pytest.mark.asyncio

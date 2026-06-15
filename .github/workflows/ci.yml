@@ -1,4 +1,4 @@
-name: CI - Backend Python
+name: CI - Job Service Python
 
 on:
   push:
@@ -7,12 +7,10 @@ on:
     branches: [ develop, main ]
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
 
     services:
-      # Os testes usam mocks e SQLite, mas podemos manter Redis e RabbitMQ 
-      # se algum teste de integração real for adicionado no futuro.
       redis:
         image: redis
         ports:
@@ -24,35 +22,34 @@ jobs:
           - 15672:15672
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python 3.13
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-        cache: 'pip'
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff mypy pytest pytest-asyncio pytest-cov pytest-mock
 
-    - name: Run tests with coverage
-      env:
-        ENVIRONMENT: test
-        JWT_SECRET: super-secret-key-for-testing-purposes-only-32bytes
-        DATABASE_URL: sqlite+aiosqlite:///test.db
-        FIRST_USER: admin@test.com
-        FIRST_PASSWORD: password123
-        REDIS_HOST: localhost
-        REDIS_PORT: 6379
-        RABBITMQ_URL: amqp://guest:guest@localhost:5672/
-      run: |
-        pytest --cov=src --cov-report=term-missing tests/
+      - name: Lint
+        run: ruff check src/ tests/
 
-    - name: Check Coverage
-      run: |
-        # Garantir que a cobertura seja 100%
-        # Se desejar falhar o build abaixo de X%, pode usar:
-        # pytest --cov=src --cov-fail-under=100 tests/
-        echo "✅ Testes e cobertura validados com sucesso!"
+      - name: Typecheck
+        run: mypy src/
+
+      - name: Run tests with coverage
+        env:
+          ENVIRONMENT: test
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/ci
+          MESSAGING_ENABLED: false
+        run: |
+          pytest --cov=src --cov-report=xml --cov-fail-under=100 tests/
+
+      - name: Check coverage gate
+        run: |
+          echo "✅ 100% coverage gate passed"

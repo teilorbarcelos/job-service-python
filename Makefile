@@ -1,95 +1,59 @@
-# Makefile to simplify project commands
+.PHONY: setup dev test coverage lint format typecheck check sonar clean
+.PHONY: infra-up infra-down generate-job
 
-.PHONY: setup dev test coverage generate storage-driver clean stop infra-up infra-down
-.PHONY: metrics-up metrics-stop metrics-down metrics-logs
-.PHONY: lint format typecheck security shell psql redis-cli logs db-migrate db-upgrade db-status
-.PHONY: install-dev deps-update check sonar
+ENVIRONMENT ?= development
 
 setup:
 	python3 -m venv venv
 	./venv/bin/pip install -r requirements.txt
-
-install-dev:
-	./venv/bin/pip install ruff mypy bandit safety
+	./venv/bin/pip install ruff mypy pytest pytest-asyncio pytest-cov pytest-mock coverage
 
 dev:
-	./venv/bin/uvicorn src.main:app --reload --host 0.0.0.0 --port 8888
+	@echo "🚀 Starting job runner (foreground)..."
+	./venv/bin/python -m src.main
 
 test:
+	@echo "🧪 Running tests..."
 	./venv/bin/pytest
 
 coverage:
-	./venv/bin/pytest --cov=src --cov-report=xml --cov-report=term-missing tests/
+	@echo "📊 Generating coverage report (fail under 100%)..."
+	./venv/bin/pytest --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=100
 
 lint:
+	@echo "🧹 Linting with ruff..."
 	./venv/bin/ruff check src/ tests/
 
-check: lint typecheck test
-
 format:
+	@echo "🎨 Formatting with ruff..."
 	./venv/bin/ruff format src/ tests/
 
 typecheck:
-	./venv/bin/mypy src/ --no-error-summary
+	@echo "🔍 Typechecking with mypy..."
+	./venv/bin/mypy src/
+
+check: lint typecheck test
 
 sonar:
+	@echo "📡 Running SonarQube scanner..."
 	sonar-scanner
 
-security:
-	./venv/bin/bandit -r src/ -x venv,tests,migrations
-	./venv/bin/safety check --bare
-
-generate:
-	./venv/bin/python3 scripts/generate_module.py $(name)
-
-storage-driver:
-	./venv/bin/python3 scripts/install_storage.py $(name)
+# Exemplo: make generate-job name=CleanupOldRecords
+generate-job:
+	@echo "🏗️  Generating job CleanupOldRecords..."
+	@echo "Crie manualmente src/jobs/CleanupOldRecordsJob.py estendendo BaseJob e registre em src/jobs/register_jobs.py"
 
 infra-up:
-	docker compose up -d db redis rabbitmq
+	@echo "🐳 Subindo infra local (PG + Redis + RabbitMQ)..."
+	docker compose -f docker-compose.infra.yml up -d
 
 infra-down:
-	docker compose down
-
-metrics-up:
-	docker compose -f docker-compose.metrics.yml up -d
-
-metrics-stop:
-	docker compose -f docker-compose.metrics.yml stop
-
-metrics-down:
-	docker compose -f docker-compose.metrics.yml down
-
-metrics-logs:
-	docker compose -f docker-compose.metrics.yml logs -f
-
-db-migrate:
-	./venv/bin/python3 -m alembic revision --autogenerate -m "auto_migration"
-
-db-upgrade:
-	./venv/bin/python3 -m alembic upgrade head
-
-db-status:
-	./venv/bin/python3 -m alembic current
-
-shell:
-	./venv/bin/python3
-
-psql:
-	PGPASSWORD=$$(grep POSTGRES_PASSWORD .env | cut -d= -f2) psql -h localhost -U $$(grep POSTGRES_USER .env | cut -d= -f2) -d $$(grep POSTGRES_DB .env | cut -d= -f2)
-
-redis-cli:
-	redis-cli -h localhost -p 6379
-
-logs:
-	docker compose logs -f
-
-deps-update:
-	./venv/bin/pip install --upgrade -r requirements.txt
+	@echo "🛑 Derrubando infra local..."
+	docker compose -f docker-compose.infra.yml down
 
 clean:
 	rm -rf venv
-	rm -f test.db
+	rm -rf .pytest_cache .ruff_cache .mypy_cache
 	find . -type d -name "__pycache__" -exec rm -rf {} +
-
-stop: infra-down
+	find . -type d -name "*.egg-info" -exec rm -rf {} +
+	rm -f coverage.xml

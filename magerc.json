@@ -1,61 +1,61 @@
 {
   "scripts": [
     {
-      "name": "Install Dependencies",
+      "name": "🛠️ Install Dependencies",
       "command": "make setup"
     },
     {
-      "name": "Start Infrastructure",
-      "command": "make infra-up"
-    },
-    {
-      "name": "Stop Infrastructure",
-      "command": "make infra-down"
-    },
-    {
-      "name": "Start Development Server",
+      "name": "🚀 Start Job Runner (dev)",
       "command": "make dev"
     },
     {
-      "name": "Run Tests",
+      "name": "🐳 Infrastructure: Start All (Postgres, Redis, RabbitMQ)",
+      "command": "make infra-up"
+    },
+    {
+      "name": "🐳 Infrastructure: Stop Services",
+      "command": "make infra-down"
+    },
+    {
+      "name": "🧪 Run Tests",
       "command": "make test"
     },
     {
-      "name": "Run Coverage",
+      "name": "📊 Code Coverage Report",
       "command": "make coverage"
     },
     {
-      "name": "Start Metrics (Grafana & Prometheus)",
-      "command": "make metrics-up"
+      "name": "🧹 Lint with ruff",
+      "command": "make lint"
     },
     {
-      "name": "Stop Metrics",
-      "command": "make metrics-stop"
+      "name": "🎨 Format with ruff",
+      "command": "make format"
     },
     {
-      "name": "Down Metrics (Remove Containers)",
-      "command": "make metrics-down"
+      "name": "🔍 Typecheck with mypy",
+      "command": "make typecheck"
     },
     {
-      "name": "Generate Module",
-      "command": "make generate"
+      "name": "✅ Check (lint + typecheck + test)",
+      "command": "make check"
     },
     {
-      "name": "Install Storage: AWS S3",
-      "command": "make storage-driver name=s3"
+      "name": "📡 SonarQube Scanner",
+      "command": "make sonar"
     },
     {
-      "name": "Install Storage: Google Cloud (GCS)",
-      "command": "make storage-driver name=gcs"
-    },
-    {
-      "name": "Install Storage: Azure Blob",
-      "command": "make storage-driver name=azure"
+      "name": "🏗️ Generate New Job (make generate-job name=Cleanup)",
+      "command": "make generate-job"
     }
   ],
   "replacements": [
     {
       "path": "requirements.txt",
+      "pattern": "backend-python"
+    },
+    {
+      "path": "pyproject.toml",
       "pattern": "backend-python"
     }
   ]

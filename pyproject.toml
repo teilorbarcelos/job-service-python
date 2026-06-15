@@ -1,7 +1,7 @@
 [project]
-name = "backend-python"
+name = "job-service-python"
 version = "1.0.0"
-description = "FastAPI backend boilerplate"
+description = "Job runner boilerplate (cron + PostgreSQL + Redis + RabbitMQ)"
 requires-python = ">=3.12"
 
 [tool.ruff]
