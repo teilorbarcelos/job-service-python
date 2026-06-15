@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+test.db
+file:testdb
+
+# Databases (Local/SQLite)
+*.sqlite3
+*.db
+
+# Docker
+.dockerignore
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build/Dist
+build/
+dist/
+*.egg-info/
+coverage.xml
+TODO.md
+.scannerwork/
